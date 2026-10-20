@@ -1,5 +1,7 @@
 # 照片水印 · Photo Watermark
 
+**在线使用：<https://zionbeihai.github.io/photo-watermark/>** ← 手机上直接打开这个地址
+
 给照片添加文字水印、图片 Logo 水印、平铺水印的**纯前端 Web App（PWA）**。
 
 - **免费**：无内购、无广告、无账号、无服务器成本（可托管在免费静态服务上）
@@ -33,23 +35,35 @@ npx serve .
 
 > 注意：必须用 `http://127.0.0.1` 或 `http://localhost`，不能用局域网 IP，否则 Service Worker 不生效。
 
-### 方式 B：部署成手机可访问的地址
+### 方式 B：部署到线上
 
-需要 HTTPS 才能"添加到主屏幕"并离线运行。下面两种都是免费的：
+**本项目已经部署完成：**
 
-#### GitHub Pages（最简单）
+| 项 | 地址 |
+|---|---|
+| 线上地址（手机直接打开） | <https://zionbeihai.github.io/photo-watermark/> |
+| 代码仓库 | <https://github.com/zionbeihai/photo-watermark> |
 
-1. 新建一个 GitHub 仓库，把本目录（`index.html` 所在层级）的所有文件推到仓库根目录
-2. 仓库 → Settings → Pages → Source 选 `Deploy from a branch`，Branch 选 `main` / `root`
-3. 等 1~2 分钟，访问 `https://<你的用户名>.github.io/<仓库名>/`
+#### 以后怎么更新
 
-#### Cloudflare Pages
+改完代码后，在项目目录执行：
 
-1. 登录 Cloudflare → Workers & Pages → Create → Pages → Connect to Git
-2. 选仓库，构建命令留空，输出目录填 `/`（根目录）
-3. 部署完成后会得到 `https://xxx.pages.dev`
+```bash
+git add -A
+git commit -m "说明这次改了什么"
+git push
+```
 
-> 之后如果改了代码，重新推送即可，Service Worker 会自动更新缓存（版本号在 `sw.js` 的 `VERSION`）。
+GitHub Pages 会在 1 分钟左右自动重新构建。
+
+> **重要**：改了 `css/`、`js/`、`index.html` 之后，记得把 `sw.js` 里的 `VERSION` 改一下
+> （例如 `v1.0.0` → `v1.0.1`），否则老用户会一直用缓存的旧版本。
+
+#### 如果想部署到自己的域名
+
+1. 在仓库 Settings → Pages → Custom domain 填入域名
+2. 在域名服务商处添加 CNAME 记录指向 `<你的用户名>.github.io`
+3. 勾选 Enforce HTTPS
 
 ---
 
