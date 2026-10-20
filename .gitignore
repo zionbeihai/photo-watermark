@@ -1,0 +1,18 @@
+# 测试产物（可随时重新生成）
+tests/out/
+
+# Agent 工作记录（不属于产品代码，不上传）
+MEMORY/
+
+# 依赖与构建产物
+node_modules/
+.venv/
+__pycache__/
+*.pyc
+
+# 编辑器/系统文件
+.vscode/
+.idea/
+Thumbs.db
+.DS_Store
+desktop.ini
