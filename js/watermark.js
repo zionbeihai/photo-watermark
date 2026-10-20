@@ -27,7 +27,7 @@
   var DEFAULTS = {
     text: {
       enabled: true,
-      content: '仅供xxx使用',
+      content: '仅供xx办理xx使用，他用无效',
       font: 'system',
       sizePct: 5,          // 字号 = 短边 × sizePct%
       color: '#ffffff',
