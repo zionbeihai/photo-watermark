@@ -29,11 +29,11 @@
       enabled: true,
       content: '仅供xx办理xx使用，他用无效',
       font: 'system',
-      sizePct: 5,          // 字号 = 短边 × sizePct%
+      sizePct: 6,          // 字号 = 短边 × sizePct%
       color: '#ffffff',
       opacity: 0.8,
-      rotate: 0,
-      pos: 'br',           // tl tc tr ml mc mr bl bc br | tile
+      rotate: -30,
+      pos: 'mc',           // tl tc tr ml mc mr bl bc br | tile
       marginPct: 3,
       bold: true,
       italic: false,

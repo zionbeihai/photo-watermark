@@ -54,7 +54,7 @@
       exif: 'clear'
     },
     busy: false,
-    lastPos: 'br'
+    lastPos: 'mc'
   };
 
   var MAX_ITEMS = 30;
