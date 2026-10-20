@@ -27,7 +27,7 @@
   var DEFAULTS = {
     text: {
       enabled: true,
-      content: '© 我的照片 2026',
+      content: '仅供xxx使用',
       font: 'system',
       sizePct: 5,          // 字号 = 短边 × sizePct%
       color: '#ffffff',
