@@ -3,7 +3,7 @@
  * 不做任何网络上报，不请求任何第三方域名。
  */
 
-var VERSION = 'v1.1.0';
+var VERSION = 'v1.1.1';
 var CACHE_NAME = 'photo-watermark-' + VERSION;
 
 var PRECACHE = [

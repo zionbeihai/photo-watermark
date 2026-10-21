@@ -397,7 +397,8 @@
 
   /* ---------------- 控件同步 ---------------- */
   function activeCfg() {
-    return state.mode === 'text' ? state.cfg.text : state.cfg.logo;
+    // "无水印"模式下位置面板是隐藏的；这里返回文字配置只是为了让同步代码不炸
+    return state.mode === 'logo' ? state.cfg.logo : state.cfg.text;
   }
 
   function rangeFill(el) {
@@ -468,6 +469,8 @@
     $('#textGroup').hidden = state.mode !== 'text';
     $('#logoGroup').hidden = state.mode !== 'logo';
     $('#logoGroup').setAttribute('data-open', state.mode === 'logo' ? 'true' : 'false');
+    // 无水印时没有东西可以定位，隐藏位置面板
+    $('#posGroup').hidden = state.mode === 'none';
 
     // 输出
     $('#outFormat').value = state.output.format;
@@ -573,7 +576,8 @@
 
     var targetLum = (window.BgReplace ? BgReplace.luminanceOf(bg.color) : 0.5);
     var textLum = (window.BgReplace ? BgReplace.luminanceOf(state.cfg.text.color || '#ffffff') : 1);
-    var lowContrast = Math.abs(targetLum - textLum) < 0.35 && !state.cfg.text.stroke;
+    var noWatermark = state.mode === 'none';
+    var lowContrast = !noWatermark && Math.abs(targetLum - textLum) < 0.35 && !state.cfg.text.stroke;
     if (warn) {
       if (lowContrast) {
         warn.className = 'inline-alert warn show';
@@ -665,9 +669,9 @@
     }).catch(function () { return exportedBlob; });
   }
 
-  function buildOutputName(name, ext) {
+  function buildOutputName(name, ext, hasWatermark) {
     var base = String(name).replace(/\.[^.]+$/, '');
-    return base + '-watermark.' + ext;
+    return base + (hasWatermark === false ? '-edited' : '-watermark') + '.' + ext;
   }
 
   // 渲染一张图的最终结果，返回 {blob, filename, outW, outH}
@@ -705,9 +709,10 @@
           chain = reattachExif(blob, item.file);
         }
         return chain.then(function (finalBlob) {
+          var hasWm = !!(state.cfg.text.enabled || state.cfg.logo.enabled);
           return {
             blob: finalBlob,
-            filename: buildOutputName(item.name, ext),
+            filename: buildOutputName(item.name, ext, hasWm),
             w: W,
             h: H,
             downscaled: size.downscaled
