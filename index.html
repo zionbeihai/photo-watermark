@@ -218,6 +218,51 @@
       </div>
     </div>
 
+    <!-- ============ 证件照换底色 ============ -->
+    <div class="group" id="bgGroup" data-open="false">
+      <button class="group-head" type="button" data-toggle="bgGroup">
+        证件照换底色 <span class="chev"></span>
+      </button>
+      <div class="group-body">
+        <button class="tile-toggle" type="button" id="bgToggle">
+          <span>启用换底色<span class="note" style="display:block;margin-top:1px">自动识别纯色背景并替换</span></span>
+          <span class="switch" aria-hidden="true"></span>
+        </button>
+
+        <div id="bgOptions" hidden>
+          <div class="field">
+            <div class="field-label">目标底色</div>
+            <div class="swatches" id="bgSwatches"></div>
+          </div>
+
+          <div class="field">
+            <div class="color-row">
+              <input type="color" id="bgColor" value="#438EDB">
+              <div style="flex:1;min-width:0">
+                <div class="field-label" id="bgColorLabel">标准蓝 · #438EDB</div>
+                <div class="note" id="bgDetected">检测中…</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="field">
+            <div class="field-label">容差 <span class="val" id="bgToleranceVal">40</span></div>
+            <input type="range" id="bgTolerance" min="5" max="120" step="1" value="40">
+            <div class="note">背景识别得不够干净就调大；人像被误当成背景就调小</div>
+          </div>
+
+          <div class="field">
+            <div class="field-label">边缘羽化 <span class="val" id="bgFeatherVal">20</span></div>
+            <input type="range" id="bgFeather" min="0" max="80" step="1" value="20">
+            <div class="note">数值越大，头发和肩膀边缘过渡越柔和</div>
+          </div>
+
+          <div class="inline-alert warn" id="bgWarn"></div>
+          <div class="note warn" id="bgHint"></div>
+        </div>
+      </div>
+    </div>
+
     <!-- ============ 输出 ============ -->
     <div class="group" id="outputGroup" data-open="true">
       <button class="group-head" type="button" data-toggle="outputGroup">
@@ -334,6 +379,7 @@
 <div class="toast-host" id="toastHost"></div>
 
 <script src="js/watermark.js"></script>
+<script src="js/bg.js"></script>
 <script src="js/exif.js"></script>
 <script src="js/zip.js"></script>
 <script src="js/app.js"></script>

@@ -53,11 +53,55 @@
       maxSide: 0,
       exif: 'clear'
     },
+    bg: {
+      enabled: false,
+      color: '#438EDB',
+      tolerance: 40,
+      feather: 20,
+      detected: null
+    },
     busy: false,
     lastPos: 'mc'
   };
 
   var MAX_ITEMS = 30;
+
+  /* ---------------- 证件照换底色 ---------------- */
+  // 在已绘制好原图的 canvas 上原地换底。W/H 必须是 canvas 的物理像素尺寸。
+  // 返回统计信息（含识别到的原底色），失败返回 null。
+  function applyBgReplace(ctx, W, H) {
+    if (!window.BgReplace || !state.bg.enabled) return null;
+    var id;
+    try {
+      id = ctx.getImageData(0, 0, W, H);
+    } catch (e) {
+      console.warn('读取像素失败（可能是跨域图片）', e);
+      return null;
+    }
+    var stats = null;
+    try {
+      stats = window.BgReplace.replaceInPlace({
+        data: id.data,
+        width: W,
+        height: H,
+        color: state.bg.color,
+        tolerance: state.bg.tolerance,
+        feather: state.bg.feather
+      });
+    } catch (e) {
+      console.warn('换底处理失败', e);
+      return null;
+    }
+    ctx.putImageData(id, 0, 0);
+    state.bg.detected = stats.bgColor;
+    return stats;
+  }
+
+  function rgbToHex(c) {
+    return '#' + [c.r, c.g, c.b].map(function (v) {
+      return Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0');
+    }).join('').toUpperCase();
+  }
 
   /* ---------------- 设备能力 ---------------- */
   function detectLimits() {
@@ -246,7 +290,9 @@
     var cssW = Math.max(1, Math.round(iw * scale));
     var cssH = Math.max(1, Math.round(ih * scale));
 
-    var dpr = Math.min(window.devicePixelRatio || 1, 2);
+    // 换底是逐像素运算：启用时按 CSS 像素渲染（不乘 DPR），
+    // 否则 2x/3x 屏上运算量会翻 4~9 倍，拖动滑块明显卡顿。
+    var dpr = state.bg.enabled ? 1 : Math.min(window.devicePixelRatio || 1, 2);
     canvas.width = Math.round(cssW * dpr);
     canvas.height = Math.round(cssH * dpr);
     canvas.style.width = cssW + 'px';
@@ -263,6 +309,10 @@
     ctx.imageSmoothingQuality = 'high';
     ctx.drawImage(item.img, 0, 0, cssW, cssH);
 
+    if (state.bg.enabled) {
+      applyBgReplace(ctx, canvas.width, canvas.height);
+    }
+
     try {
       WE.draw(ctx, cssW, cssH, { text: state.cfg.text, logo: state.cfg.logo });
     } catch (e) {
@@ -271,6 +321,7 @@
 
     wrap.classList.remove('is-empty');
     $('#stageTitle').textContent = item.name;
+    updateBgStatus();
   });
 
   function renderThumbs() {
@@ -433,12 +484,111 @@
       if (el) rangeFill(el);
     });
 
+    syncBgControls();
     renderPreview();
   }
 
   function trimNum(n) {
     var v = Math.round(n * 10) / 10;
     return String(v);
+  }
+
+  /* ---------------- 换底色 UI 同步 ---------------- */
+  function presetNameOf(color) {
+    var list = (window.BgReplace && BgReplace.PRESETS) || [];
+    for (var i = 0; i < list.length; i++) {
+      if (list[i].color.toUpperCase() === String(color).toUpperCase()) return list[i].name;
+    }
+    return '自定义';
+  }
+
+  function syncBgControls() {
+    var bg = state.bg;
+    var hasBg = !!window.BgReplace;
+
+    $('#bgToggle').classList.toggle('active', bg.enabled && hasBg);
+    $('#bgToggle').setAttribute('aria-pressed', bg.enabled && hasBg ? 'true' : 'false');
+    $('#bgOptions').hidden = !(bg.enabled && hasBg);
+
+    $('#bgColor').value = bg.color;
+    $('#bgTolerance').value = bg.tolerance;
+    $('#bgToleranceVal').textContent = bg.tolerance;
+    $('#bgFeather').value = bg.feather;
+    $('#bgFeatherVal').textContent = bg.feather;
+    rangeFill($('#bgTolerance'));
+    rangeFill($('#bgFeather'));
+
+    $('#bgColorLabel').textContent = presetNameOf(bg.color) + ' · ' + String(bg.color).toUpperCase();
+
+    $$('#bgSwatches .swatch').forEach(function (s) {
+      s.classList.toggle('active',
+        String(s.getAttribute('data-color')).toUpperCase() === String(bg.color).toUpperCase());
+    });
+
+    updateBgStatus();
+  }
+
+  // 换底后底色变了，原来水印颜色可能正好撞色。
+  // 按底色亮度自动选高对比的水印色，并开描边，让水印在任何区域都压得住。
+  function autoFixWatermarkContrast() {
+    var lum = (window.BgReplace ? BgReplace.luminanceOf(state.bg.color) : 0.5);
+    var isLightBg = lum > 0.6;
+    var color = isLightBg ? '#1F2937' : '#FFFFFF';
+    var strokeColor = isLightBg ? '#FFFFFF' : '#000000';
+
+    state.cfg.text.color = color;
+    $('#textColor').value = color;
+    $$('#textSwatches .swatch').forEach(function (s) {
+      s.classList.toggle('active', String(s.getAttribute('data-color')).toLowerCase() === color.toLowerCase());
+    });
+
+    state.cfg.text.stroke = true;
+    state.cfg.text.strokeColor = strokeColor;
+    $('#textStroke').checked = true;
+    $('#strokeRow').hidden = false;
+    $('#strokeColor').value = strokeColor;
+
+    updateBgStatus();
+    renderPreview();
+    toast('水印已改为' + (isLightBg ? '深色' : '白色') + '并开启描边', 'ok');
+  }
+
+  function updateBgStatus() {
+    var bg = state.bg;
+    var warn = $('#bgWarn');
+    var hint = $('#bgHint');
+    var detected = $('#bgDetected');
+    if (!detected) return;
+
+    if (!bg.enabled) {
+      detected.textContent = '';
+      if (warn) { warn.className = 'inline-alert warn'; warn.textContent = ''; }
+      if (hint) hint.textContent = '';
+      return;
+    }
+
+    detected.innerHTML = bg.detected
+      ? '识别到的原底色：<span style="color:#cfe4ff;font-weight:500">' + rgbToHex(bg.detected) + '</span>'
+      : '识别到的原底色：—';
+
+    var targetLum = (window.BgReplace ? BgReplace.luminanceOf(bg.color) : 0.5);
+    var textLum = (window.BgReplace ? BgReplace.luminanceOf(state.cfg.text.color || '#ffffff') : 1);
+    var lowContrast = Math.abs(targetLum - textLum) < 0.35 && !state.cfg.text.stroke;
+    if (warn) {
+      if (lowContrast) {
+        warn.className = 'inline-alert warn show';
+        warn.innerHTML = '<span>当前底色和水印颜色对比不够，水印可能看不清。</span>' +
+          '<button type="button" class="btn btn-sm" id="fixContrastBtn" style="margin-left:auto;flex:0 0 auto">自动调整</button>';
+        var fixBtn = document.getElementById('fixContrastBtn');
+        if (fixBtn) fixBtn.addEventListener('click', autoFixWatermarkContrast);
+      } else {
+        warn.className = 'inline-alert warn';
+        warn.textContent = '';
+      }
+    }
+    if (hint) {
+      hint.textContent = '仅适用于纯色或接近纯色的背景。背景有花纹、杂物、明暗渐变时无法干净分离。';
+    }
   }
 
   function updateExifHint() {
@@ -538,6 +688,10 @@
       ctx.imageSmoothingEnabled = true;
       ctx.imageSmoothingQuality = 'high';
       ctx.drawImage(img, 0, 0, W, H);
+
+      if (state.bg.enabled) {
+        applyBgReplace(ctx, W, H);
+      }
 
       WE.draw(ctx, W, H, { text: state.cfg.text, logo: state.cfg.logo });
 
@@ -869,6 +1023,7 @@
       $$('#textSwatches .swatch').forEach(function (s) {
         s.classList.toggle('active', s.getAttribute('data-color').toLowerCase() === t.color.toLowerCase());
       });
+      updateBgStatus();
       renderPreview();
     });
     $$('#textSwatches .swatch').forEach(function (s) {
@@ -877,6 +1032,7 @@
         $('#textColor').value = t.color;
         $$('#textSwatches .swatch').forEach(function (x) { x.classList.remove('active'); });
         s.classList.add('active');
+        updateBgStatus();
         renderPreview();
       });
     });
@@ -885,6 +1041,7 @@
     bindCheck('textStroke', function (v) {
       t.stroke = v;
       $('#strokeRow').hidden = !v;
+      updateBgStatus();
     });
     $('#strokeColor').addEventListener('input', function () {
       t.strokeColor = this.value;
@@ -963,6 +1120,45 @@
     bindRange('logoRotate', function (v) {
       state.cfg.logo.rotate = v;
       $('#logoRotateVal').textContent = v + '°';
+    });
+
+    /* --- 证件照换底色 --- */
+    var bgSwatchHost = $('#bgSwatches');
+    (window.BgReplace ? BgReplace.PRESETS : []).forEach(function (p) {
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'swatch';
+      btn.title = p.name + ' ' + p.color;
+      btn.setAttribute('data-color', p.color);
+      btn.setAttribute('aria-label', p.name + ' ' + p.color);
+      btn.style.background = p.color;
+      btn.addEventListener('click', function () {
+        state.bg.color = p.color;
+        syncBgControls();
+        renderPreview();
+      });
+      bgSwatchHost.appendChild(btn);
+    });
+
+    $('#bgToggle').addEventListener('click', function () {
+      state.bg.enabled = !state.bg.enabled;
+      syncBgControls();
+      renderPreview();
+    });
+
+    $('#bgColor').addEventListener('input', function () {
+      state.bg.color = this.value;
+      syncBgControls();
+      renderPreview();
+    });
+
+    bindRange('bgTolerance', function (v) {
+      state.bg.tolerance = v;
+      $('#bgToleranceVal').textContent = v;
+    });
+    bindRange('bgFeather', function (v) {
+      state.bg.feather = v;
+      $('#bgFeatherVal').textContent = v;
     });
 
     /* --- 输出 --- */
